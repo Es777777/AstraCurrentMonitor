@@ -1,0 +1,16 @@
+.venv/
+build/
+dist/
+release/
+_internal/
+AstraCurrentMonitor.exe
+*.spec
+__pycache__/
+*.py[cod]
+*.png
+!**/fixtures/*.png
+!test_images/*.png
+*.jpg.debug.png
+data/
+test_gui_data/
+*/THIRD_PARTY_LICENSES/

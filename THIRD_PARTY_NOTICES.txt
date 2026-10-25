@@ -1,0 +1,22 @@
+AstraCurrentMonitor third-party software notices
+
+Python 3.12 - Python Software Foundation License
+https://docs.python.org/3/license.html
+
+PyQt5 5.15.11 and Qt 5.15.2 - GPLv3 or commercial license.
+This application is distributed under GPLv3 when using the GPL-licensed PyQt5/Qt distribution.
+https://www.riverbankcomputing.com/software/pyqt/intro
+https://www.qt.io/licensing/
+https://www.gnu.org/licenses/gpl-3.0.html
+
+OpenCV 4.13.0.92 - Apache License 2.0
+https://github.com/opencv/opencv
+opencv-python binary wheels include third-party components; see bundled license files.
+
+NumPy 2.5.4 - BSD-3-Clause and bundled third-party notices
+https://github.com/numpy/numpy
+
+PyInstaller 6.20.0 - GPL-2.0-or-later with a bootloader distribution exception
+https://pyinstaller.org/en/stable/license.html
+
+Full license files are provided in THIRD_PARTY_LICENSES. Windows system fonts are not redistributed.

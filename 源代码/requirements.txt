@@ -1,0 +1,4 @@
+﻿opencv-python==4.13.0.92
+numpy==2.5.4
+PyQt5==5.15.11
+PyInstaller==6.20.0
