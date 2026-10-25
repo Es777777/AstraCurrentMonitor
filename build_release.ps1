@@ -18,7 +18,9 @@ if (Test-Path $release) { Remove-Item -LiteralPath $release -Recurse -Force }
 New-Item -ItemType Directory -Path $release | Out-Null
 $bundle = Join-Path $release 'AstraCurrentMonitor-v1.3.0-windows'
 Copy-Item -LiteralPath (Join-Path $dist 'AstraCurrentMonitor') -Destination $bundle -Recurse
-Get-ChildItem -LiteralPath $root -File -Filter '*.txt' | Where-Object { $_.Name -ne 'THIRD_PARTY_NOTICES.txt' } | Copy-Item -Destination $bundle
+$docs = @(Get-ChildItem -LiteralPath $root -File -Filter '*.txt' | Where-Object { $_.Length -gt 2000 } | Sort-Object Length -Descending)
+Copy-Item -LiteralPath $docs[0].FullName -Destination (Join-Path $bundle 'USER_GUIDE.txt')
+Copy-Item -LiteralPath $docs[1].FullName -Destination (Join-Path $bundle 'VALIDATION.txt')
 Copy-Item -LiteralPath (Join-Path $root 'THIRD_PARTY_NOTICES.txt') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'THIRD_PARTY_LICENSES') -Destination $bundle -Recurse
