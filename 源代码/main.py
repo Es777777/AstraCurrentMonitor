@@ -25,7 +25,7 @@ from camera import Camera
 from measurement import MeasurementEngine,RecordStore
 from smart_display import locate_voltage
 
-VERSION='1.3.1'
+VERSION='1.3.2'
 
 class CameraScanSignals(QObject):
     finished=Signal(list)
@@ -69,11 +69,11 @@ def image_pixmap(bgr):
     rgb=cv2.cvtColor(bgr,cv2.COLOR_BGR2RGB)
     return QPixmap.fromImage(QImage(rgb.data,rgb.shape[1],rgb.shape[0],rgb.strides[0],QImage.Format_RGB888).copy())
 
-def single_instance(app):
+def single_instance(app,data_dir=None):
     """Prevent duplicate camera windows from the same portable installation."""
-    folder=Path(sys.executable).parent if getattr(sys,'frozen',False) else Path(__file__).parent
-    (folder/'data').mkdir(parents=True,exist_ok=True)
-    lock=QLockFile(str(folder/'data'/'application.lock'));lock.setStaleLockTime(0)
+    folder=Path(data_dir) if data_dir else (Path(sys.executable).parent/'data' if getattr(sys,'frozen',False) else Path(__file__).parent/'data')
+    folder.mkdir(parents=True,exist_ok=True)
+    lock=QLockFile(str(folder/'application.lock'));lock.setStaleLockTime(0)
     if lock.tryLock(0):return lock
     if lock.error()==QLockFile.LockError.LockFailedError:return None
     raise RuntimeError('无法建立启动保护，请将软件解压到可写入的文件夹后重试。')
@@ -162,18 +162,18 @@ class Preview(QWidget):
         elif action==clear:self.clear_requested.emit()
 
 class MainWindow(QMainWindow):
-    def __init__(self,data_dir=None):
+    def __init__(self,data_dir=None,scan_on_start=True):
         super().__init__()
         self.data_dir=Path(data_dir or (Path(sys.executable).parent/'data' if getattr(sys,'frozen',False) else Path(__file__).parent/'data'))
         self.store=RecordStore(self.data_dir)
-        self.cfg=RecognitionConfig(auto_align=True,color='auto',row='current')
+        self.cfg=RecognitionConfig(auto_align=True,color='auto',row='current',maximum=999999)
         self.voltage_cfg=RecognitionConfig(digits=3,decimals=1,maximum=999999,auto_align=True,color='blue',row='voltage')
         self.camera=None; self.retiring=[]; self.frame=None;self.last_frame=0.; self.connected=False
         self.engine=MeasurementEngine();self.calibrating=None;self.last_shape=None; self.last_reading=None;self.last_voltage_reading=None;self.last_drop_count=0
         self.setWindowTitle(f'Astra 电流监测 · {VERSION}');self.resize(1380,940);self.setMinimumSize(900,680)
         self.build_ui();self.load_settings();self.refresh_records()
         self.timer=QTimer(self);self.timer.timeout.connect(self.tick);self.timer.start(50)
-        QTimer.singleShot(150,self.refresh_cameras)
+        if scan_on_start:QTimer.singleShot(150,self.refresh_cameras)
         self.log('就绪。默认每轮采集 5 秒，测量结束后等待 10 秒；记录区间内所有有效读数的最大值。')
 
     def build_ui(self):
@@ -249,7 +249,8 @@ class MainWindow(QMainWindow):
         self.brightness=QSpinBox();self.brightness.setRange(15,250);self.brightness.setValue(90);rf.addRow('手动亮度阈值',self.brightness)
         self.red_diff=QSpinBox();self.red_diff.setRange(5,180);self.red_diff.setValue(35);rf.addRow('红色差值阈值',self.red_diff)
         self.lower=QDoubleSpinBox();self.lower.setRange(0,999999);self.lower.setDecimals(3);rf.addRow('最小电流 / A',self.lower)
-        self.upper=QDoubleSpinBox();self.upper.setRange(.001,999999);self.upper.setDecimals(3);self.upper.setValue(100);rf.addRow('最大电流 / A',self.upper)
+        self.upper=QDoubleSpinBox();self.upper.setRange(.001,999999);self.upper.setDecimals(3);self.upper.setValue(999999);rf.addRow('最大电流 / A',self.upper)
+        self.upper.setToolTip('这是识别结果筛选阈值，不是仪表量程或电流峰值上限；请按实际设备需要设置。')
         self.repeats=QSpinBox();self.repeats.setRange(1,10);self.repeats.setValue(1);rf.addRow('读数确认帧数',self.repeats)
         self.blanks=QCheckBox('允许最左侧空白位补 0');self.blanks.setChecked(True);rf.addRow(self.blanks)
         tip=QLabel('①自动定位上排蓝色电压与下排红色电流。\n定位失败时分别框选上排电压、下排电流。\n总位数不含小数点；小数位按设置解释。\n确认前请核对 V、A 单位及实物小数点。\n单击框选择，按 Delete 删除。');tip.setObjectName('hint');tip.setWordWrap(True);rf.addRow(tip);sl.addWidget(recognition)
@@ -427,7 +428,7 @@ class MainWindow(QMainWindow):
         self.connect_btn.setText('断开相机');self.connection.setText('●  正在连接…')
         if demo:
             self.digits.setValue(3);self.decimals.setValue(1);self.brightness.setValue(90);self.red_diff.setValue(35)
-            self.color.setCurrentIndex(0);self.auto_align.setChecked(True);self.lower.setValue(0);self.upper.setValue(100)
+            self.color.setCurrentIndex(0);self.auto_align.setChecked(True);self.lower.setValue(0);self.upper.setValue(999999)
             _,self.cfg.voltage_roi,self.cfg.roi=render_monitor_display();self.cfg.cells=[];self.sync_config()
             self.notice.setText('模拟演示 · 所有数值均为生成的测试信号，记录中会标记“模拟”')
         else:self.notice.setText('摄像头模式 · 上排蓝色为电压 / 下排红色为电流；先核对实物读数再测量')
@@ -612,7 +613,7 @@ def main():
     parser=argparse.ArgumentParser();parser.add_argument('--demo',action='store_true');parser.add_argument('--data-dir')
     parser.add_argument('--connect',action='store_true',help='Open the selected camera and try one automatic localization')
     parser.add_argument('--diagnostic-output',help='Local diagnostic output for the first 120 seconds')
-    parser.add_argument('--smoke-test',metavar='SCREENSHOT');args=parser.parse_args()
+    parser.add_argument('--smoke-test',metavar='SCREENSHOT');parser.add_argument('--ui-screenshot',metavar='PNG',help='Capture the running Qt window with an explicitly simulated signal; no camera is opened');args=parser.parse_args()
     app=QApplication(sys.argv)
     # Offscreen/remote Windows sessions may not enumerate system fonts. Load the
     # installed Windows fonts explicitly; no proprietary font is redistributed.
@@ -621,13 +622,13 @@ def main():
         if (fonts/filename).exists():QFontDatabase.addApplicationFont(str(fonts/filename))
     app.setStyle('Fusion');app.setStyleSheet(STYLE)
     app.setFont(QFont('Microsoft YaHei UI',10))
-    try:instance_lock=single_instance(app)
+    try:instance_lock=single_instance(app,args.data_dir)
     except (RuntimeError,OSError) as exc:
         QMessageBox.warning(None,'电流监测',str(exc));return 1
     if instance_lock is None:
         if not args.smoke_test:QMessageBox.information(None,'电流监测','软件已经在运行。请切换到已有窗口，避免同时打开多个相机预览。')
         return 0
-    try:window=MainWindow(args.data_dir)
+    try:window=MainWindow(args.data_dir,not bool(args.ui_screenshot))
     except Exception as exc:
         QMessageBox.critical(None,'启动失败','无法打开记录目录，请将软件解压到有写入权限的文件夹。\n'+str(exc));return 1
     def exception_hook(kind,value,tb):
@@ -660,6 +661,21 @@ def main():
             (window.data_dir/'smoke_result.json').write_text(json.dumps(records,ensure_ascii=False,indent=2),encoding='utf-8')
             window.close();app.quit()
         QTimer.singleShot(900,begin);QTimer.singleShot(11900,finish)
+    if args.ui_screenshot:
+        def capture_ui():
+            from recognition import render_monitor_display
+            frame,voltage_roi,current_roi=render_monitor_display(voltage=12.6,current=2.5,noise=0)
+            window.camera_index.clear();window.camera_index.addItem('offscreen 模拟画面')
+            window.connection.setText('●  模拟')
+            window.notice.setText('通用摄像头 · 上排蓝色为电压 / 下排红色为电流 · 当前画面为模拟信号')
+            window.preview.demo=True;window.cfg.roi=current_roi;window.cfg.voltage_roi=voltage_roi
+            window.cfg.color='auto';window.cfg.auto_align=True;window.sync_config()
+            window.process_packet(time.monotonic(),frame)
+            window.peak.setText('— A');window.phase_label.setText('演示 / 未测量')
+            window.log('offscreen 界面截图：PyQt5 实际窗口；识别画面与数值为软件模拟数据，不来自实体仪表。')
+            if not window.grab().save(args.ui_screenshot):raise OSError('无法保存 Qt 界面截图。')
+            window.close();app.quit()
+        QTimer.singleShot(250,capture_ui)
     return app.exec_()
 
 if __name__=='__main__':sys.exit(main())

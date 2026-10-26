@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
-$version = 'v1.3.1'
+$version = 'v1.3.2'
 $repository = 'Es777777/AstraCurrentMonitor'
-$assetName = 'AstraCurrentMonitor-v1.3.1-windows-offline.zip'
+$assetName = 'AstraCurrentMonitor-v1.3.2-windows-offline.zip'
 
 if ($env:OS -ne 'Windows_NT') { throw 'This installer supports Windows only.' }
 $architecture = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }

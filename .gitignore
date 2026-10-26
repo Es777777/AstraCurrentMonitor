@@ -8,6 +8,7 @@ AstraCurrentMonitor.exe
 __pycache__/
 *.py[cod]
 *.png
+!docs/*.png
 !**/fixtures/*.png
 !test_images/*.png
 *.jpg.debug.png

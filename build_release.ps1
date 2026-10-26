@@ -5,7 +5,7 @@ if (-not $source) { throw 'Could not find the source directory containing main.p
 $python = Join-Path $root '.venv\Scripts\python.exe'
 $dist = Join-Path $source 'dist'
 $release = Join-Path $root 'release'
-$version = '1.3.1'
+$version = '1.3.2'
 
 if (-not (Test-Path $python)) { throw 'Create the project .venv and install requirements.txt first.' }
 Push-Location $source
@@ -20,11 +20,18 @@ $bundle = Join-Path $release "AstraCurrentMonitor-v$version-offline"
 if (Test-Path $bundle) { Remove-Item -LiteralPath $bundle -Recurse -Force }
 Copy-Item -LiteralPath (Join-Path $dist 'AstraCurrentMonitor') -Destination $bundle -Recurse
 Copy-Item -LiteralPath (Join-Path $root 'USER_GUIDE.txt') -Destination $bundle
+Copy-Item -LiteralPath (Join-Path $root 'README.md') -Destination $bundle
+Copy-Item -LiteralPath (Join-Path $root '使用说明.txt') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'VALIDATION.txt') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'THIRD_PARTY_NOTICES.txt') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'THIRD_PARTY_LICENSES') -Destination $bundle -Recurse
-Compress-Archive -LiteralPath $bundle -DestinationPath (Join-Path $release "AstraCurrentMonitor-v$version-windows-offline.zip") -Force
+Copy-Item -LiteralPath (Join-Path $root 'docs') -Destination $bundle -Recurse
+Copy-Item -LiteralPath (Join-Path $root 'output\pdf') -Destination (Join-Path $bundle 'output\pdf') -Recurse
+$offlineZip = Join-Path $release "AstraCurrentMonitor-v$version-windows-offline.zip"
+Compress-Archive -LiteralPath $bundle -DestinationPath $offlineZip -Force
+$offlineHash = (Get-FileHash -LiteralPath $offlineZip -Algorithm SHA256).Hash.ToLowerInvariant()
+Set-Content -LiteralPath "$offlineZip.sha256" -Value "$offlineHash  $(Split-Path -Leaf $offlineZip)" -Encoding ascii
 
 $online = Join-Path $release "AstraCurrentMonitor-v$version-online"
 if (Test-Path $online) { Remove-Item -LiteralPath $online -Recurse -Force }

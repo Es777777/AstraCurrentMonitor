@@ -1,4 +1,4 @@
-AstraCurrentMonitor v1.3.1 - Online installer
+AstraCurrentMonitor v1.3.2 - Online installer
 
 Requirements: Windows 10/11 x64 or ARM64 and an internet connection.
 No Python installation is required. The installer downloads the complete

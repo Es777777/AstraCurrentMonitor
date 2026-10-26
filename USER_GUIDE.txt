@@ -1,4 +1,4 @@
-Astra Current Monitor v1.3.1
+Astra Current Monitor v1.3.2
 
 The blue digits on the upper display row are voltage in volts (V). The red
 digits on the lower row are current in amps (A). The interface marks each row

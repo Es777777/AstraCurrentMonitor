@@ -1,4 +1,4 @@
-Astra Current Monitor v1.3.1 validation summary
+Astra Current Monitor v1.3.2 validation summary
 
 - Automated unit tests cover camera queue handling, recognition, measurement
   timing, peak handling, and durable storage.
@@ -8,6 +8,10 @@ Astra Current Monitor v1.3.1 validation summary
   remain outside the preview bounds and the left work area scrolls vertically
   when the window is shorter than its content.
 - The packaged executable is tested with the synthetic demo measurement flow.
+- The software maximum-current recognition threshold defaults to 999999 A; it
+  filters recognized values and is not a meter range or peak-current cap.
+- The offscreen UI screenshot uses the real PyQt5 window and the application's
+  generated two-row test image. Its displayed values are simulated, not measured.
 
 Camera-specific accuracy depends on the target computer and display. Verify
 against the physical instrument before relying on the readings.

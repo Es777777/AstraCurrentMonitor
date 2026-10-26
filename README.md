@@ -1,38 +1,88 @@
-# Astra Current Monitor
+# 通用摄像头电流监测
 
-Windows desktop software for reading a two-row seven-segment display from a camera. The upper blue row is voltage (V); the lower red row is current (A). It records current peaks, voltage at the peak, and maximum voltage, and exports CSV.
+Windows 桌面软件通过摄像头读取双排七段数码管：**上排蓝色数字为电压（V），下排红色数字为电流（A）**。程序按设定的测量周期识别电流，并保存每轮有效读数中的最大值、该时刻电压和本轮最高电压，支持 CSV 导出与峰值证据图。
 
-## Recognition
+> **测量含义：** 每轮“最大电流”是该轮采集区间中被相机送达且通过图像质量检查的有效读数的最大值。`1.0 A` 只用于部分测试或演示样例，不是程序设定的峰值上限、设备量程，也不是最大电流值。相机未拍到的瞬态无法恢复；软件记录值不是对电源硬件极限或真实连续时间峰值的保证。
 
-The recognizer uses color separation, seven-segment geometry, slant correction, threshold ensemble checks, and rejection of ambiguous frames. It does not use CNN inference or a network service. This suits fixed displays and a small calibration set: recognition stays inspectable and offline, and uncertain values are rejected instead of guessed.
+## 下载与安装
 
-## Run from source
+从 [GitHub Releases](https://github.com/Es777777/AstraCurrentMonitor/releases/latest) 下载 Windows x64 包：
 
-Requires Windows and Python 3.12.
+| 版本 | 使用方式 | 需要网络 |
+| --- | --- | --- |
+| Offline | 下载 `AstraCurrentMonitor-v1.3.2-windows-offline.zip`，完整解压后运行 `AstraCurrentMonitor.exe`。包内含 Python、PyQt5、Qt、OpenCV 及运行依赖。 | 否 |
+| Online | 下载 `AstraCurrentMonitor-v1.3.2-windows-online.zip`，解压后在 PowerShell 运行 `Install-Online.ps1`。安装器检查系统架构、网络和磁盘空间，下载离线包并校验 GitHub 发布的 SHA-256，然后安装到当前用户目录并启动。 | 是 |
+
+在线安装器不下载识别模型；图像处理与识别在本机离线执行。离线 ZIP 旁附 `.sha256` 校验文件；在线安装器验证 GitHub release API 提供的资产 SHA-256 digest。首次使用仍应对照实体仪表核验读数。
+
+## 快速开始
+
+1. 固定相机，确保上下两排数字和小数点清晰、完整，避免反光、过曝与运动模糊。
+2. 刷新摄像头列表，选择实际设备、DirectShow（DSHOW）或 Media Foundation（MSMF）接口与分辨率，然后连接。支持 Windows 能打开的普通 USB 摄像头，不限定 Astra。
+3. 设置电流总位数（不含小数点）与小数位数。点击“自动定位上下两行”；定位不可靠时分别框选上排电压、下排电流区域。
+4. 对照仪表实体，核对实时 V、A 数值、小数点和单位。建议使用多个已知读数检查 `0`、`1`、`8` 和小数点；通过核对选项后才开始测量。
+5. 设置“采集时长”和“两次测量间隔”。默认每轮采集 5 秒，结束后等待 10 秒，再开始下一轮。点击“开始自动测量”。
+6. 在记录表查看每轮最大电流、峰值时电压、最高电压、有效帧数和质量状态；可导出全部历史 CSV，双击有证据的行查看峰值图。
+
+**模拟演示**用于检查界面、识别与记录流程；画面、读数和记录均标为模拟数据，不能作为实测结果。
+
+## 峰值、阈值与采样边界
+
+- 默认“读数确认帧数”为 1，每个通过识别的有效读数都会立即参与本轮最大值比较。因此仅出现一帧的有效峰值也会保留，不会被要求重复出现多帧。
+- “最大电流 / A”是识别结果筛选阈值，用于拒绝明显不符合设置的读数；它不是电源量程、程序记录峰值或安全上限。默认值为 `999999 A`，请仅按需要设置。已知最大值可能超过 `1 A` 时，不要把阈值设为 `1 A`。
+- 轮次记录的是**采集窗口内观测到的最大值**。实际有效时间分辨率受摄像头帧率、曝光、自动增益、USB 带宽、CPU 和识别耗时影响；超过相机采样能力的短时尖峰可能未被捕获。
+- 缓冲区会按采集顺序处理相机送达的帧；缓冲溢出会记录丢帧数并将结果标为需复核。相机自身没有输出的画面仍无法由软件补出。
+- 增大“读数确认帧数”有助于抑制抖动误读，但可能滤除短暂真峰值。处理峰值问题时应先用默认 1 帧确认，并检查证据图片、有效帧和丢帧标记。
+- 最小/最大电流阈值应设为识别范围需要的合理边界，而不能替代仪表本身的量程、过流保护或安全联锁。
+
+## 界面和数据
+
+- 上排蓝色读数框和定位框对应电压 V；下排红色读数框和定位框对应电流 A。左侧图像预览显示当前相机画面及识别框，右侧设置区可以独立滚动；窗口缩窄时界面改为上下分栏，避免控件与画面挤在一起。
+- 自动定位会尝试识别两行区域。可分别手动框选整行；框选包含全部数字和小数点并留少量边距，不要只框单个字符。单击框选中，Delete/Backspace 删除，Esc 取消。
+- 记录表的“分段质量”是图像分段质量指标，不是测量准确度或标定置信区间。`有效帧偏少`、`采集帧丢失`、`无有效读数` 和 `调度中断` 都应复核。
+- 数据存于可写安装目录下的 `data/records.sqlite3`、`data/全部测量记录.csv`、`data/evidence/` 和 `data/settings.json`。升级前可备份整个 `data` 目录。界面显示最近 500 条，导出包含完整历史记录。
+- 导出字段包括轮次时间、最大电流、峰值时电压、最高电压、识别帧计数、质量、状态、来源、证据路径、识别参数和缓冲丢帧数。模拟数据带有模拟来源标记，分析时应与实测分开。
+
+## 算法与适用范围
+
+当前识别器面向标准七段数码管，采用颜色分离、数字亮段几何模板、倾斜校正、多阈值检查和低质量拒判；有歧义或被遮挡的读数会拒绝显示，而不是猜测。流程可解释、可离线运行，也无需为有限图集训练 CNN。测试图集用于回归校验已见外观，不能保证覆盖所有仪表字体、镜头、曝光或颜色。
+
+仅适用于清晰、非负、固定小数位的标准七段读数，单位按 A 输入；不会自动换算 mA，也不会猜测小数点位置。更换相机、位置、仪表或照明后应重新定位并用实体读数核验。该工具是读数记录软件，不是校准仪器、计量认证系统或安全保护装置。
+
+## 从源码运行与测试
+
+需要 Windows、Python 3.12 和依赖文件。PowerShell 示例：
 
 ```powershell
 python -m venv .venv
 .venv\Scripts\Activate.ps1
-$source = Get-ChildItem -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'main.py') } | Select-Object -First 1 -ExpandProperty FullName
-pip install -r (Join-Path $source 'requirements.txt')
-python (Join-Path $source 'main.py') --demo
+pip install -r 源代码\requirements.txt
+python 源代码\main.py --demo
 ```
 
-Run camera mode without `--demo`. To run tests, use `Push-Location $source`, then `python -m unittest discover -p "test_*.py" -v`, then `Pop-Location`. To include the migrated photo set, set `ASTRA_TEST_IMAGE_DIR` to the absolute path of `test_images` before running tests.
+正常连接相机运行 `python 源代码\main.py`。运行单元测试：
 
-## Windows release
+```powershell
+Push-Location 源代码
+$env:ASTRA_TEST_IMAGE_DIR = (Resolve-Path ..\test_images).Path
+python -m unittest discover -p "test_*.py" -v
+Pop-Location
+```
 
-Choose one of the two release packages:
+测试涵盖七段数字组合、倾斜/噪声/遮挡、实际迁移的十张图像、相机队列、测量时间边界、瞬态峰值和本地记录存储。自动化结果不能代替目标摄像头与实体仪表的现场核对。
 
-- Offline: `AstraCurrentMonitor-v1.3.1-windows-offline.zip` includes the executable, Python runtime, Qt, OpenCV, and dependencies. Extract the whole folder and run `AstraCurrentMonitor.exe`; no network or Python installation is needed.
-- Online: `AstraCurrentMonitor-v1.3.1-windows-online.zip` contains a small PowerShell installer. It checks Windows architecture, network access, and free space, downloads the complete offline package, verifies the GitHub SHA-256 digest, installs under `%LOCALAPPDATA%\Programs`, and launches the app.
+## 构建、发布与许可
 
-Both versions support selectable DirectShow/MSMF cameras. Refresh the camera list after connecting or disconnecting a device. The application stores records and settings in a writable `data` directory beside the executable.
+`build_release.ps1` 使用 PyInstaller 生成包含运行时的离线包和轻量在线安装包。`Install-Online.ps1` 从本项目 GitHub release 获取运行包、校验其 SHA-256，并从 Microsoft 获取缺失的 VC++ Runtime。请只运行可信来源的脚本，并查看发布页校验摘要。
 
-## Validation
+本项目按 GPL-3.0-only 发布。第三方声明见 `THIRD_PARTY_NOTICES.txt`，完整依赖许可见 `THIRD_PARTY_LICENSES/`。
 
-Automated tests cover measurement timing and storage, seven-segment readings, edge clipping, synthetic dual-color readings, and the migrated ten-photo regression set in `test_images`. Actual camera accuracy still depends on focus, exposure, display type, and framing; verify readings against the physical meter before measuring.
+## 文件结构
 
-## License
-
-GPL-3.0-only. Third-party license texts are in `THIRD_PARTY_LICENSES/`; notices are in `THIRD_PARTY_NOTICES.txt`.
+- `源代码/`：PyQt5 界面、摄像头采集、七段识别、测量和存储模块及测试。
+- `test_images/`：迁移的十张图像回归集。
+- `docs/`：用于生成说明书的 Qt offscreen 界面截图。
+- `output/pdf/通用摄像头电流监测使用说明书.pdf`：中文版操作手册。
+- `USER_GUIDE.txt`、`使用说明.txt`：英文简版和中文详细操作说明。
+- `VALIDATION.txt`、`验证结果.txt`：验证范围与已知限制。
+- `release/`：本地打包目录，不属于源码运行所需文件。
