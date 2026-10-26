@@ -21,13 +21,14 @@ if (Test-Path $bundle) { Remove-Item -LiteralPath $bundle -Recurse -Force }
 Copy-Item -LiteralPath (Join-Path $dist 'AstraCurrentMonitor') -Destination $bundle -Recurse
 Copy-Item -LiteralPath (Join-Path $root 'USER_GUIDE.txt') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'README.md') -Destination $bundle
-Copy-Item -LiteralPath (Join-Path $root '使用说明.txt') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'VALIDATION.txt') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'THIRD_PARTY_NOTICES.txt') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'THIRD_PARTY_LICENSES') -Destination $bundle -Recurse
 Copy-Item -LiteralPath (Join-Path $root 'docs') -Destination $bundle -Recurse
-Copy-Item -LiteralPath (Join-Path $root 'output\pdf') -Destination (Join-Path $bundle 'output\pdf') -Recurse
+$bundlePdf = Join-Path $bundle 'output\pdf'
+New-Item -ItemType Directory -Path $bundlePdf -Force | Out-Null
+Copy-Item -Path (Join-Path $root 'output\pdf\*') -Destination $bundlePdf -Recurse
 $offlineZip = Join-Path $release "AstraCurrentMonitor-v$version-windows-offline.zip"
 Compress-Archive -LiteralPath $bundle -DestinationPath $offlineZip -Force
 $offlineHash = (Get-FileHash -LiteralPath $offlineZip -Algorithm SHA256).Hash.ToLowerInvariant()
