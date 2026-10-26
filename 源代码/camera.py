@@ -47,7 +47,7 @@ class Camera:
                     self.cancel.wait(.05); continue
                 failures=0
                 if not announced:
-                    self.events.put(('connected','模拟信号（非真实测量）' if self.demo else f'USB 相机 {self.index} · {self.backend}'))
+                    self.events.put(('connected','模拟信号（非真实测量）' if self.demo else f'摄像头 {self.index} · {self.backend}'))
                     announced=True
                 try:self.frames.put_nowait((captured,frame))
                 except queue.Full:

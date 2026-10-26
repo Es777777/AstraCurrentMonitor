@@ -19,4 +19,6 @@ https://github.com/numpy/numpy
 PyInstaller 6.20.0 - GPL-2.0-or-later with a bootloader distribution exception
 https://pyinstaller.org/en/stable/license.html
 
+Online installation scripts use Windows PowerShell and the GitHub REST API.
+
 Full license files are provided in THIRD_PARTY_LICENSES. Windows system fonts are not redistributed.

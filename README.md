@@ -22,7 +22,12 @@ Run camera mode without `--demo`. To run tests, use `Push-Location $source`, the
 
 ## Windows release
 
-Download `AstraCurrentMonitor-v1.3.0-windows.zip` from GitHub Releases, extract the complete folder, and run `AstraCurrentMonitor.exe`. The application stores records and settings in a `data` directory next to the executable. Keep the extracted folder writable.
+Choose one of the two release packages:
+
+- Offline: `AstraCurrentMonitor-v1.3.1-windows-offline.zip` includes the executable, Python runtime, Qt, OpenCV, and dependencies. Extract the whole folder and run `AstraCurrentMonitor.exe`; no network or Python installation is needed.
+- Online: `AstraCurrentMonitor-v1.3.1-windows-online.zip` contains a small PowerShell installer. It checks Windows architecture, network access, and free space, downloads the complete offline package, verifies the GitHub SHA-256 digest, installs under `%LOCALAPPDATA%\Programs`, and launches the app.
+
+Both versions support selectable DirectShow/MSMF cameras. Refresh the camera list after connecting or disconnecting a device. The application stores records and settings in a writable `data` directory beside the executable.
 
 ## Validation
 

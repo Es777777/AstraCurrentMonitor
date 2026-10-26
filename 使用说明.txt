@@ -1,4 +1,4 @@
-Astra 电流监测 v1.3.0
+通用摄像头电流监测 v1.3.1
 
 本版本使用 PyQt5 5.15.11，界面中上排蓝色数字为电压（V），下排红色数字为电流（A）。识别采用颜色分离、七段几何模板、倾斜校正、多阈值复核和低质量拒判，不依赖 CNN 或联网服务。
 
@@ -18,12 +18,12 @@ Astra 电流监测 v1.3.0
 升级前先停止测量并关闭当前旧版窗口，再打开 1.2.0；不要同时打开两个不同版本。
 
 1. 打开新版
-完整解压“电流监测上位机_v1.2.zip”，进入文件夹，双击 AstraCurrentMonitor.exe。
-标题应显示 1.3.0。请保留 _internal 文件夹。无需安装 Python。
+离线版：完整解压 AstraCurrentMonitor-v1.3.1-windows-offline.zip，进入文件夹，双击 AstraCurrentMonitor.exe。在线版：解压 AstraCurrentMonitor-v1.3.1-windows-online.zip，在 PowerShell 运行 Install-Online.ps1。在线安装器检查 Windows 架构、网络与磁盘空间，下载完整运行环境并校验 SHA-256，然后安装和启动。
+标题应显示 1.3.0。离线版已包含运行环境，无需安装 Python 或联网。
 旧版 data 文件夹保存旧记录，如需保留请先复制备份，不要覆盖旧目录。
 
 2. 连接相机
-本机已确认 Astra Pro 对应 USB 相机 1；默认 DSHOW、640×480。
+本机已确认 任意 Windows 可用摄像头均可；点击“刷新摄像头列表”选择设备，默认 DSHOW、640×480。
 点击“连接相机”。换电脑后可能需要切换相机编号。
 连接失败时，关闭其他占用相机的软件，或断开后改用 MSMF。
 Windows 相机权限须允许桌面应用访问。

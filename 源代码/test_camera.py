@@ -2,9 +2,10 @@ import queue
 import threading
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock,patch
 import numpy as np
 from camera import Camera
+from main import scan_cameras
 
 class FakeCapture:
     def __init__(self,can_open=True,read_ok=True):
@@ -17,6 +18,15 @@ class FakeCapture:
     def release(self):self.released=True
 
 class CameraTests(unittest.TestCase):
+    def test_camera_scan_only_lists_devices_that_open_and_return_a_frame(self):
+        signals=Mock();devices=[]
+        for index in range(10):
+            cap=Mock();cap.isOpened.return_value=index in (1,4,7)
+            cap.read.return_value=(index!=4,None);devices.append(cap)
+        with patch('main.cv2.VideoCapture',side_effect=devices):scan_cameras('DSHOW',signals)
+        signals.finished.emit.assert_called_once_with([1,7])
+        for cap in devices:cap.release.assert_called_once()
+
     def test_pending_preserves_every_packet_and_one_frame_peak(self):
         camera=Camera.__new__(Camera);camera.frames=queue.Queue(maxsize=64)
         for t,v in [(1,.9),(2,1.),(3,.9)]:camera.frames.put((t,v))

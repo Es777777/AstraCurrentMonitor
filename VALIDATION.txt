@@ -1,0 +1,13 @@
+Astra Current Monitor v1.3.1 validation summary
+
+- Automated unit tests cover camera queue handling, recognition, measurement
+  timing, peak handling, and durable storage.
+- The migrated ten-image regression set checks blue upper-row voltage and red
+  lower-row current readings.
+- Layout smoke checks run at 1380x940, 1100x780, and 900x680; action buttons
+  remain outside the preview bounds and the left work area scrolls vertically
+  when the window is shorter than its content.
+- The packaged executable is tested with the synthetic demo measurement flow.
+
+Camera-specific accuracy depends on the target computer and display. Verify
+against the physical instrument before relying on the readings.

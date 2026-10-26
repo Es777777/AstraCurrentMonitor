@@ -7,24 +7,41 @@ import os
 from pathlib import Path
 import queue
 import sys
+import threading
 import time
 import traceback
 
 os.environ.setdefault('OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS','0')
 import cv2
 import numpy as np
-from PyQt5.QtCore import Qt,QRectF,QPointF,QTimer,pyqtSignal as Signal,QUrl,QLockFile
+from PyQt5.QtCore import Qt,QRectF,QPointF,QTimer,pyqtSignal as Signal,QUrl,QLockFile,QObject
 from PyQt5.QtGui import QColor,QFont,QFontDatabase,QImage,QPainter,QPen,QPixmap,QDesktopServices
-from PyQt5.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,
+from PyQt5.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QGridLayout,
     QLabel,QPushButton,QComboBox,QSpinBox,QDoubleSpinBox,QFormLayout,QGroupBox,
     QCheckBox,QScrollArea,QTableWidget,QTableWidgetItem,QHeaderView,QFileDialog,QMenu,
-    QMessageBox,QPlainTextEdit,QProgressBar,QSplitter,QAbstractItemView)
+    QMessageBox,QPlainTextEdit,QProgressBar,QSplitter,QAbstractItemView,QFrame,QSizePolicy)
 from recognition import RecognitionConfig,recognize,digit_boxes,render_display,render_monitor_display,box_pixels
 from camera import Camera
 from measurement import MeasurementEngine,RecordStore
 from smart_display import locate_voltage
 
-VERSION='1.3.0'
+VERSION='1.3.1'
+
+class CameraScanSignals(QObject):
+    finished=Signal(list)
+
+def scan_cameras(backend,signals):
+    api=cv2.CAP_DSHOW if backend=='DSHOW' else cv2.CAP_MSMF
+    found=[]
+    for index in range(10):
+        cap=cv2.VideoCapture(index,api)
+        try:
+            if cap.isOpened():
+                ok,_=cap.read()
+                if ok:found.append(index)
+        finally:cap.release()
+    signals.finished.emit(found)
+
 STYLE='''
 QWidget {font-family: "Microsoft YaHei UI", "Microsoft YaHei"; font-size: 13px; color:#25334a;}
 QMainWindow, #root {background:#f1f4f8;}
@@ -86,7 +103,7 @@ class Preview(QWidget):
         r=self.display_rect()
         if self.pix is None:
             p.setPen(QColor('#afc0d6'));p.setFont(QFont('Microsoft YaHei UI',14))
-            p.drawText(self.rect(),Qt.AlignCenter,'连接 Astra Pro，查看彩色画面\n或点击「模拟演示」体验测量流程')
+            p.drawText(self.rect(),Qt.AlignCenter,'连接任意可用摄像头查看画面\n或点击「模拟演示」体验测量流程')
             return
         p.drawPixmap(r,self.pix,QRectF(self.pix.rect()))
         if self.voltage_roi:
@@ -153,9 +170,10 @@ class MainWindow(QMainWindow):
         self.voltage_cfg=RecognitionConfig(digits=3,decimals=1,maximum=999999,auto_align=True,color='blue',row='voltage')
         self.camera=None; self.retiring=[]; self.frame=None;self.last_frame=0.; self.connected=False
         self.engine=MeasurementEngine();self.calibrating=None;self.last_shape=None; self.last_reading=None;self.last_voltage_reading=None;self.last_drop_count=0
-        self.setWindowTitle(f'Astra 电流监测 · {VERSION}');self.resize(1380,940);self.setMinimumSize(1100,780)
+        self.setWindowTitle(f'Astra 电流监测 · {VERSION}');self.resize(1380,940);self.setMinimumSize(900,680)
         self.build_ui();self.load_settings();self.refresh_records()
         self.timer=QTimer(self);self.timer.timeout.connect(self.tick);self.timer.start(50)
+        QTimer.singleShot(150,self.refresh_cameras)
         self.log('就绪。默认每轮采集 5 秒，测量结束后等待 10 秒；记录区间内所有有效读数的最大值。')
 
     def build_ui(self):
@@ -163,21 +181,27 @@ class MainWindow(QMainWindow):
         layout=QVBoxLayout(root);layout.setContentsMargins(20,15,20,15);layout.setSpacing(10)
         title=QHBoxLayout();heading=QLabel('ASTRA  /  电流监测');heading.setStyleSheet('font-size:24px;font-weight:700;color:#16334b;')
         title.addWidget(heading);title.addStretch();self.connection=QLabel('●  相机未连接');title.addWidget(self.connection);layout.addLayout(title)
-        self.notice=QLabel('Astra Pro · 上排蓝色为电压 / 下排红色为电流 · 1 位小数    |    首次使用请核对实物读数')
+        self.notice=QLabel('通用摄像头 · 上排蓝色为电压 / 下排红色为电流 · 1 位小数    |    首次使用请核对实物读数')
         self.notice.setStyleSheet('background:#e1edf6;color:#365c7e;padding:10px;border-radius:6px;');layout.addWidget(self.notice)
         stats=QHBoxLayout();self.voltage=self.stat(stats,'上排电压','— V','#1769aa');self.current=self.stat(stats,'下排电流','— A','#b74836');self.peak=self.stat(stats,'本轮最大电流','— A')
         self.phase_label=self.stat(stats,'测量状态','已停止');self.count_label=self.stat(stats,'已保存记录','0');layout.addLayout(stats)
         self.progress=QProgressBar();self.progress.setRange(0,1000);self.progress.setTextVisible(False);layout.addWidget(self.progress)
-        splitter=QSplitter(Qt.Horizontal);layout.addWidget(splitter,1)
-        left=QWidget();ll=QVBoxLayout(left);ll.setContentsMargins(0,0,8,0)
-        self.preview=Preview();self.preview.selected.connect(self.on_selected)
+        self.main_splitter=QSplitter(Qt.Horizontal);self.main_splitter.setChildrenCollapsible(False);layout.addWidget(self.main_splitter,1)
+        left=QWidget();left.setMinimumWidth(0);left.setSizePolicy(QSizePolicy.Ignored,QSizePolicy.Preferred)
+        ll=QVBoxLayout(left);ll.setContentsMargins(0,0,8,0)
+        self.preview=Preview();self.preview.setMinimumHeight(220);self.preview.selected.connect(self.on_selected)
         self.preview.delete_requested.connect(self.delete_box);self.preview.clear_requested.connect(self.clear_boxes);self.preview.cancel_requested.connect(self.cancel_selection)
         ll.addWidget(self.preview,3)
-        tools=QHBoxLayout();self.auto_btn=QPushButton('① 自动定位上下两行');self.auto_btn.clicked.connect(self.auto_locate);tools.addWidget(self.auto_btn)
-        self.roi_btn=QPushButton('② 框选电流大致区域');self.roi_btn.clicked.connect(self.select_roi);tools.addWidget(self.roi_btn)
-        self.voltage_roi_btn=QPushButton('③ 框选电压区域');self.voltage_roi_btn.clicked.connect(self.select_voltage_roi);tools.addWidget(self.voltage_roi_btn)
-        self.cell_btn=QPushButton('逐位框选');self.cell_btn.clicked.connect(self.select_cells);tools.addWidget(self.cell_btn)
-        self.demo_btn=QPushButton('模拟演示');self.demo_btn.clicked.connect(self.start_demo);tools.addWidget(self.demo_btn);ll.addLayout(tools)
+        tools=QGridLayout();tools.setHorizontalSpacing(6);tools.setVerticalSpacing(6)
+        self.auto_btn=QPushButton('① 自动定位上下两行');self.auto_btn.clicked.connect(self.auto_locate)
+        self.roi_btn=QPushButton('② 框选电流大致区域');self.roi_btn.clicked.connect(self.select_roi)
+        self.voltage_roi_btn=QPushButton('③ 框选电压区域');self.voltage_roi_btn.clicked.connect(self.select_voltage_roi)
+        self.cell_btn=QPushButton('逐位框选');self.cell_btn.clicked.connect(self.select_cells)
+        self.demo_btn=QPushButton('模拟演示');self.demo_btn.clicked.connect(self.start_demo)
+        for index,button in enumerate((self.auto_btn,self.roi_btn,self.voltage_roi_btn,self.cell_btn,self.demo_btn)):
+            button.setMinimumHeight(34);tools.addWidget(button,index//3,index%3)
+        for column in range(3):tools.setColumnStretch(column,1)
+        ll.addLayout(tools)
         edit=QHBoxLayout();self.delete_btn=QPushButton('删除选中框');self.delete_btn.clicked.connect(self.delete_selected)
         self.clear_btn=QPushButton('清空所有框');self.clear_btn.clicked.connect(self.clear_boxes)
         edit.addWidget(self.delete_btn);edit.addWidget(self.clear_btn)
@@ -185,7 +209,7 @@ class MainWindow(QMainWindow):
         self.read_status=QLabel('识别区域尚未设置');self.read_status.setWordWrap(True);ll.addWidget(self.read_status)
         masks=QHBoxLayout();self.crop_view=QLabel('电流局部');self.mask_view=QLabel('红色提取预览')
         for widget in (self.crop_view,self.mask_view):
-            widget.setAlignment(Qt.AlignCenter);widget.setFixedHeight(74);widget.setStyleSheet('background:#172338;color:#b5c3d6;border-radius:5px;');masks.addWidget(widget,1)
+            widget.setAlignment(Qt.AlignCenter);widget.setFixedHeight(62);widget.setStyleSheet('background:#172338;color:#b5c3d6;border-radius:5px;');masks.addWidget(widget,1)
         ll.addLayout(masks)
         row=QHBoxLayout();rh=QLabel('测量记录');rh.setStyleSheet('font-size:16px;font-weight:600;');row.addWidget(rh);row.addStretch()
         export=QPushButton('导出 CSV');export.clicked.connect(self.export_csv);row.addWidget(export)
@@ -193,21 +217,30 @@ class MainWindow(QMainWindow):
         self.table=QTableWidget(0,9);self.table.setHorizontalHeaderLabels(['开始时间','最大电流 / A','峰值时电压 / V','最高电压 / V','有效 / 采集帧','确认帧','质量','状态','来源 / 证据'])
         self.table.setAlternatingRowColors(True);self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.verticalHeader().hide();self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.table.horizontalHeader().setStretchLastSection(True);self.table.setMinimumHeight(155)
+        self.table.verticalHeader().hide()
+        header=self.table.horizontalHeader();header.setSectionResizeMode(QHeaderView.Interactive)
+        for column,width in enumerate((142,88,100,100,92,58,55,90)):
+            self.table.setColumnWidth(column,width)
+        header.setStretchLastSection(True);self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded);self.table.setMinimumHeight(120)
+        self.table.setMinimumWidth(0);self.table.setSizePolicy(QSizePolicy.Ignored,QSizePolicy.Expanding)
         self.table.cellDoubleClicked.connect(self.open_evidence);ll.addWidget(self.table,2)
-        self.logs=QPlainTextEdit();self.logs.setReadOnly(True);self.logs.setMaximumBlockCount(250);self.logs.setFixedHeight(65);ll.addWidget(self.logs)
-        splitter.addWidget(left)
+        self.logs=QPlainTextEdit();self.logs.setReadOnly(True);self.logs.setMaximumBlockCount(250);self.logs.setFixedHeight(52);ll.addWidget(self.logs)
+        left_scroll=QScrollArea();left_scroll.setWidgetResizable(True);left_scroll.setFrameShape(QFrame.NoFrame)
+        left_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff);left_scroll.setWidget(left)
+        self.main_splitter.addWidget(left_scroll)
         scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setMinimumWidth(320);scroll.setMaximumWidth(385)
         settings=QWidget();sl=QVBoxLayout(settings);sl.setContentsMargins(2,0,2,0)
         camera_group=QGroupBox('相机连接');form=QFormLayout(camera_group)
-        self.camera_index=QComboBox();self.camera_index.addItems([f'USB 相机 {i}' for i in range(10)]);form.addRow('相机编号',self.camera_index)
-        self.camera_index.setCurrentIndex(1)
+        self.camera_index=QComboBox()
+        for index in range(10):self.camera_index.addItem(f'摄像头 {index}',index)
+        form.addRow('摄像头',self.camera_index)
+        self.camera_index.setCurrentIndex(0)
+        self.scan_btn=QPushButton('刷新摄像头列表');self.scan_btn.clicked.connect(self.refresh_cameras);form.addRow(self.scan_btn)
         self.backend=QComboBox();self.backend.addItems(['DSHOW','MSMF']);form.addRow('接口',self.backend)
         self.resolution=QComboBox();self.resolution.addItems(['1280 × 720','640 × 480']);form.addRow('请求分辨率',self.resolution)
         self.resolution.setCurrentIndex(1)
         self.connect_btn=QPushButton('连接相机');self.connect_btn.clicked.connect(self.toggle_camera);form.addRow(self.connect_btn)
-        tip=QLabel('看不到 Astra 画面时，切换相机编号。\n连接失败时可尝试 MSMF 接口。');tip.setObjectName('hint');form.addRow(tip);sl.addWidget(camera_group)
+        tip=QLabel('扫描结果会列出当前可打开的摄像头。\n连接失败时可切换 DSHOW / MSMF 接口。');tip.setObjectName('hint');tip.setWordWrap(True);form.addRow(tip);sl.addWidget(camera_group)
         recognition=QGroupBox('数显识别设置');rf=QFormLayout(recognition)
         self.digits=QSpinBox();self.digits.setRange(2,8);self.digits.setValue(3);rf.addRow('总数字位数',self.digits)
         self.decimals=QSpinBox();self.decimals.setRange(0,4);self.decimals.setValue(1);rf.addRow('小数点后位数',self.decimals)
@@ -227,14 +260,25 @@ class MainWindow(QMainWindow):
         self.start_btn=QPushButton('开始自动测量');self.start_btn.setObjectName('primary');self.start_btn.clicked.connect(self.start_measure);mf.addRow(self.start_btn)
         self.stop_btn=QPushButton('停止测量');self.stop_btn.setObjectName('stop');self.stop_btn.setEnabled(False);self.stop_btn.clicked.connect(self.stop_measure);mf.addRow(self.stop_btn)
         tip=QLabel('默认：测 5 秒 → 等待 10 秒 → 再测。\n记录电流峰值、峰值时电压与最高电压。\n默认 1 帧确认，保留区间内的有效瞬态峰值。');tip.setObjectName('hint');tip.setWordWrap(True);mf.addRow(tip)
-        sl.addStretch();scroll.setWidget(settings)
-        right=QWidget();right.setMinimumWidth(340);right.setMaximumWidth(385)
-        rl=QVBoxLayout(right);rl.setContentsMargins(0,0,0,0);rl.addWidget(scroll,1);rl.addWidget(measure)
-        splitter.addWidget(right);splitter.setSizes([970,350])
-        self.lock_controls=[self.camera_index,self.backend,self.resolution,self.digits,self.decimals,self.color,self.auto_align,self.brightness,self.red_diff,self.lower,self.upper,self.repeats,self.blanks,self.interval,self.duration,self.auto_btn,self.roi_btn,self.voltage_roi_btn,self.cell_btn,self.delete_btn,self.clear_btn,self.demo_btn,self.verified]
+        sl.addWidget(measure);sl.addStretch();scroll.setWidget(settings)
+        right=QWidget();right.setMinimumWidth(0);right.setMaximumWidth(385)
+        rl=QVBoxLayout(right);rl.setContentsMargins(0,0,0,0);rl.addWidget(scroll,1)
+        self.main_splitter.addWidget(right);self.main_splitter.setSizes([970,350])
+        self.lock_controls=[self.camera_index,self.scan_btn,self.backend,self.resolution,self.digits,self.decimals,self.color,self.auto_align,self.brightness,self.red_diff,self.lower,self.upper,self.repeats,self.blanks,self.interval,self.duration,self.auto_btn,self.roi_btn,self.voltage_roi_btn,self.cell_btn,self.delete_btn,self.clear_btn,self.demo_btn,self.verified]
+        self.camera_scan_signals=CameraScanSignals(self);self.camera_scan_signals.finished.connect(self.camera_scan_finished)
         for control in (self.digits,self.decimals,self.brightness,self.red_diff,self.lower,self.upper,self.repeats,self.interval,self.duration):control.valueChanged.connect(self.settings_changed)
         self.color.currentIndexChanged.connect(self.settings_changed);self.blanks.toggled.connect(self.settings_changed)
         self.auto_align.toggled.connect(self.settings_changed)
+
+    def resizeEvent(self,event):
+        super().resizeEvent(event)
+        if not hasattr(self,'main_splitter'):return
+        orientation=Qt.Horizontal if self.centralWidget().width()>=1080 else Qt.Vertical
+        if self.main_splitter.orientation()!=orientation:
+            self.main_splitter.setOrientation(orientation)
+            if orientation==Qt.Vertical:
+                self.main_splitter.setSizes([max(310,int(self.main_splitter.height()*.68)),max(170,int(self.main_splitter.height()*.32))])
+            else:self.main_splitter.setSizes([max(600,int(self.main_splitter.width()*.73)),max(320,int(self.main_splitter.width()*.27))])
 
     def stat(self,layout,label,value,color='#143e55'):
         box=QWidget();box.setStyleSheet('background:white;border-radius:8px;');v=QVBoxLayout(box);v.setContentsMargins(16,10,16,10)
@@ -328,7 +372,7 @@ class MainWindow(QMainWindow):
     def save_settings(self):
         if self.camera and self.camera.demo:return
         settings={'schema':3,'recognition':asdict(self.cfg),'voltage_roi':self.cfg.voltage_roi,'interval':self.interval.value(),'duration':self.duration.value(),'repeats':self.repeats.value(),
-                  'camera_index':self.camera_index.currentIndex(),'backend':self.backend.currentIndex(),'resolution':self.resolution.currentIndex()}
+                  'camera_index':self.camera_index.currentData(),'backend':self.backend.currentIndex(),'resolution':self.resolution.currentIndex()}
         try:(self.data_dir/'settings.json').write_text(json.dumps(settings,ensure_ascii=False,indent=2),encoding='utf-8')
         except OSError as exc:self.log('配置保存失败：'+str(exc))
 
@@ -344,7 +388,8 @@ class MainWindow(QMainWindow):
             self.color.setCurrentIndex(['auto','red','gray'].index(c.color));self.auto_align.setChecked(c.auto_align)
             self.interval.setValue(data.get('interval',10));self.duration.setValue(data.get('duration',5))
             self.repeats.setValue(data.get('repeats',1) if data.get('schema')==2 else 1)
-            for name in ['camera_index','backend','resolution']:getattr(self,name).setCurrentIndex(data.get(name,0))
+            self.camera_index.setCurrentIndex(max(0,self.camera_index.findData(data.get('camera_index',0))))
+            self.backend.setCurrentIndex(data.get('backend',0));self.resolution.setCurrentIndex(data.get('resolution',0))
             for widget in controls:widget.blockSignals(False)
             c.voltage_roi=data.get('voltage_roi');self.cfg=c;self.sync_config()
         except Exception as exc:self.log('旧配置未能载入，使用默认值：'+str(exc))
@@ -352,6 +397,22 @@ class MainWindow(QMainWindow):
     def toggle_camera(self):
         if self.camera:self.disconnect_camera()
         else:self.open_camera(False)
+
+    def refresh_cameras(self):
+        if self.camera:
+            self.log('请先断开当前摄像头，再刷新设备列表。');return
+        backend=self.backend.currentText();self.scan_btn.setEnabled(False);self.connect_btn.setEnabled(False);self.scan_btn.setText('正在扫描…')
+        threading.Thread(target=scan_cameras,args=(backend,self.camera_scan_signals),daemon=True).start()
+
+    def camera_scan_finished(self,indices):
+        previous=self.camera_index.currentData()
+        self.camera_index.blockSignals(True);self.camera_index.clear()
+        for index in indices:self.camera_index.addItem(f'摄像头 {index}',index)
+        if previous in indices:self.camera_index.setCurrentIndex(indices.index(previous))
+        elif indices:self.camera_index.setCurrentIndex(0)
+        else:self.camera_index.addItem('未检测到摄像头',0)
+        self.camera_index.blockSignals(False);self.scan_btn.setEnabled(True);self.connect_btn.setEnabled(True);self.scan_btn.setText('刷新摄像头列表')
+        self.log('摄像头列表已刷新：'+(', '.join(str(i) for i in indices) if indices else '未找到可用设备'))
 
     def start_demo(self):
         if not (self.camera and self.camera.demo):self.save_settings()
@@ -362,14 +423,14 @@ class MainWindow(QMainWindow):
         self.last_drop_count=0
         self.reset_reading_views()
         self.preview.demo=demo;self.preview.pix=None;self.preview.update();self.last_reading=None
-        self.camera=Camera(self.camera_index.currentIndex(),self.backend.currentText(),(1280,720) if self.resolution.currentIndex()==0 else (640,480),demo)
+        self.camera=Camera(self.camera_index.currentData() or 0,self.backend.currentText(),(1280,720) if self.resolution.currentIndex()==0 else (640,480),demo)
         self.connect_btn.setText('断开相机');self.connection.setText('●  正在连接…')
         if demo:
             self.digits.setValue(3);self.decimals.setValue(1);self.brightness.setValue(90);self.red_diff.setValue(35)
             self.color.setCurrentIndex(0);self.auto_align.setChecked(True);self.lower.setValue(0);self.upper.setValue(100)
             _,self.cfg.voltage_roi,self.cfg.roi=render_monitor_display();self.cfg.cells=[];self.sync_config()
             self.notice.setText('模拟演示 · 所有数值均为生成的测试信号，记录中会标记“模拟”')
-        else:self.notice.setText('真实相机模式 · 点击①自动定位红色电流，核对实物读数后开始测量')
+        else:self.notice.setText('摄像头模式 · 上排蓝色为电压 / 下排红色为电流；先核对实物读数再测量')
 
     def disconnect_camera(self):
         self.stop_measure()

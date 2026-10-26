@@ -13,4 +13,13 @@ __pycache__/
 *.jpg.debug.png
 data/
 test_gui_data/
+layout_*.png
+layout_final_*.png
+layout_minimal_*.png
+layout_fit_*.png
+layout_resp_*.png
+layout_show_*.png
+layout_release_*.png
+layout_checked_*.png
+layout_*.png
 */THIRD_PARTY_LICENSES/
