@@ -1,4 +1,4 @@
-Astra Current Monitor v1.3.2 validation summary
+Camera Current Monitor v1.3.3 validation summary
 
 - Automated unit tests cover camera queue handling, recognition, measurement
   timing, peak handling, and durable storage.

@@ -5,20 +5,20 @@ if (-not $source) { throw 'Could not find the source directory containing main.p
 $python = Join-Path $root '.venv\Scripts\python.exe'
 $dist = Join-Path $source 'dist'
 $release = Join-Path $root 'release'
-$version = '1.3.2'
+$version = '1.3.3'
 
 if (-not (Test-Path $python)) { throw 'Create the project .venv and install requirements.txt first.' }
 Push-Location $source
 try {
     & $python -m PyInstaller --noconfirm --clean --onedir --windowed `
-        --name AstraCurrentMonitor main.py
+        --name CameraCurrentMonitor main.py
     if ($LASTEXITCODE -ne 0) { throw 'PyInstaller failed.' }
 } finally { Pop-Location }
 
 New-Item -ItemType Directory -Path $release -Force | Out-Null
-$bundle = Join-Path $release "AstraCurrentMonitor-v$version-offline"
+$bundle = Join-Path $release "CameraCurrentMonitor-v$version-offline"
 if (Test-Path $bundle) { Remove-Item -LiteralPath $bundle -Recurse -Force }
-Copy-Item -LiteralPath (Join-Path $dist 'AstraCurrentMonitor') -Destination $bundle -Recurse
+Copy-Item -LiteralPath (Join-Path $dist 'CameraCurrentMonitor') -Destination $bundle -Recurse
 Copy-Item -LiteralPath (Join-Path $root 'USER_GUIDE.txt') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'README.md') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $root 'VALIDATION.txt') -Destination $bundle
@@ -29,16 +29,16 @@ Copy-Item -LiteralPath (Join-Path $root 'docs') -Destination $bundle -Recurse
 $bundlePdf = Join-Path $bundle 'output\pdf'
 New-Item -ItemType Directory -Path $bundlePdf -Force | Out-Null
 Copy-Item -Path (Join-Path $root 'output\pdf\*') -Destination $bundlePdf -Recurse
-$offlineZip = Join-Path $release "AstraCurrentMonitor-v$version-windows-offline.zip"
+$offlineZip = Join-Path $release "CameraCurrentMonitor-v$version-windows-offline.zip"
 Compress-Archive -LiteralPath $bundle -DestinationPath $offlineZip -Force
 $offlineHash = (Get-FileHash -LiteralPath $offlineZip -Algorithm SHA256).Hash.ToLowerInvariant()
 Set-Content -LiteralPath "$offlineZip.sha256" -Value "$offlineHash  $(Split-Path -Leaf $offlineZip)" -Encoding ascii
 
-$online = Join-Path $release "AstraCurrentMonitor-v$version-online"
+$online = Join-Path $release "CameraCurrentMonitor-v$version-online"
 if (Test-Path $online) { Remove-Item -LiteralPath $online -Recurse -Force }
 New-Item -ItemType Directory -Path $online -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $root 'Install-Online.ps1') -Destination $online
 Copy-Item -LiteralPath (Join-Path $root 'ONLINE_README.txt') -Destination $online
-Compress-Archive -LiteralPath $online -DestinationPath (Join-Path $release "AstraCurrentMonitor-v$version-windows-online.zip") -Force
-Write-Host (Join-Path $release "AstraCurrentMonitor-v$version-windows-offline.zip")
-Write-Host (Join-Path $release "AstraCurrentMonitor-v$version-windows-online.zip")
+Compress-Archive -LiteralPath $online -DestinationPath (Join-Path $release "CameraCurrentMonitor-v$version-windows-online.zip") -Force
+Write-Host (Join-Path $release "CameraCurrentMonitor-v$version-windows-offline.zip")
+Write-Host (Join-Path $release "CameraCurrentMonitor-v$version-windows-online.zip")

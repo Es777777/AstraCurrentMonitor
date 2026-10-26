@@ -3,7 +3,7 @@ build/
 dist/
 release/
 _internal/
-AstraCurrentMonitor.exe
+*.exe
 *.spec
 __pycache__/
 *.py[cod]

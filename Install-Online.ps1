@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
-$version = 'v1.3.2'
-$repository = 'Es777777/AstraCurrentMonitor'
-$assetName = 'AstraCurrentMonitor-v1.3.2-windows-offline.zip'
+$version = 'v1.3.3'
+$repository = 'Es777777/CameraCurrentMonitor'
+$assetName = 'CameraCurrentMonitor-v1.3.3-windows-offline.zip'
 
 if ($env:OS -ne 'Windows_NT') { throw 'This installer supports Windows only.' }
 $architecture = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
@@ -9,17 +9,17 @@ if ($architecture -notin @('AMD64', 'ARM64')) { throw "Unsupported Windows archi
 
 $api = "https://api.github.com/repos/$repository/releases/tags/$version"
 Write-Host "Checking Windows $architecture, network access, and release $version..."
-$release = Invoke-RestMethod -Uri $api -Headers @{ 'User-Agent' = 'AstraCurrentMonitor-Online-Installer' }
+$release = Invoke-RestMethod -Uri $api -Headers @{ 'User-Agent' = 'CameraCurrentMonitor-Online-Installer' }
 $asset = $release.assets | Where-Object { $_.name -eq $assetName } | Select-Object -First 1
 if (-not $asset) { throw "Release asset '$assetName' was not found." }
 
-$installRoot = Join-Path $env:LOCALAPPDATA "Programs\AstraCurrentMonitor\$version"
+$installRoot = Join-Path $env:LOCALAPPDATA "Programs\CameraCurrentMonitor\$version"
 $drive = [System.IO.Path]::GetPathRoot($installRoot)
 $driveName = $drive.Substring(0,1)
 $freeBytes = (Get-PSDrive -Name $driveName -ErrorAction Stop).Free
 if ($freeBytes -lt 400MB) { throw 'At least 400 MB of free space is required for download and installation.' }
 
-$work = Join-Path $env:TEMP ("AstraCurrentMonitor-" + [guid]::NewGuid().ToString('N'))
+$work = Join-Path $env:TEMP ("CameraCurrentMonitor-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $work | Out-Null
 try {
     $archive = Join-Path $work $assetName
@@ -32,12 +32,12 @@ try {
 
     $expanded = Join-Path $work 'expanded'
     Expand-Archive -LiteralPath $archive -DestinationPath $expanded
-    $exe = Get-ChildItem -LiteralPath $expanded -Filter 'AstraCurrentMonitor.exe' -Recurse | Select-Object -First 1
+    $exe = Get-ChildItem -LiteralPath $expanded -Filter 'CameraCurrentMonitor.exe' -Recurse | Select-Object -First 1
     if (-not $exe) { throw 'The downloaded package does not contain the application executable.' }
     New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
     Get-ChildItem -LiteralPath $exe.Directory.FullName | Copy-Item -Destination $installRoot -Recurse -Force
     Write-Host "Installed to $installRoot"
-    Start-Process -FilePath (Join-Path $installRoot 'AstraCurrentMonitor.exe')
+    Start-Process -FilePath (Join-Path $installRoot 'CameraCurrentMonitor.exe')
 } finally {
     Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
 }

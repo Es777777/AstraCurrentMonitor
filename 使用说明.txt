@@ -1,4 +1,4 @@
-通用摄像头电流监测 v1.3.2
+通用摄像头电流监测 v1.3.3
 
 本版本使用 PyQt5 5.15.11，界面中上排蓝色数字为电压（V），下排红色数字为电流（A）。识别采用颜色分离、七段几何模板、倾斜校正、多阈值复核和低质量拒判，不依赖 CNN 或联网服务。
 
@@ -20,8 +20,8 @@
 升级前先停止测量并关闭当前旧版窗口，再打开 1.2.0；不要同时打开两个不同版本。
 
 1. 打开新版
-离线版：完整解压 AstraCurrentMonitor-v1.3.2-windows-offline.zip，进入文件夹，双击 AstraCurrentMonitor.exe。在线版：解压 AstraCurrentMonitor-v1.3.2-windows-online.zip，在 PowerShell 运行 Install-Online.ps1。在线安装器检查 Windows 架构、网络与磁盘空间，下载完整运行环境并校验 GitHub 发布的 SHA-256，然后安装和启动。
-标题应显示 1.3.2。离线版已包含运行环境，无需安装 Python 或联网。安装包内的 output/pdf/通用摄像头电流监测使用说明书.pdf 含实际运行的 Qt 界面截图；截图所示仪表画面为带标记的软件模拟数据。
+离线版：完整解压 CameraCurrentMonitor-v1.3.3-windows-offline.zip，进入文件夹，双击 CameraCurrentMonitor.exe。在线版：解压 CameraCurrentMonitor-v1.3.3-windows-online.zip，在 PowerShell 运行 Install-Online.ps1。在线安装器检查 Windows 架构、网络与磁盘空间，下载完整运行环境并校验 GitHub 发布的 SHA-256，然后安装和启动。
+标题应显示“通用摄像头电流监测”。离线版已包含运行环境，无需安装 Python 或联网。安装包内的 output/pdf/通用摄像头电流监测使用说明书.pdf 含实际运行的 Qt 界面截图；截图所示仪表画面为带标记的软件模拟数据。
 旧版 data 文件夹保存旧记录，如需保留请先复制备份，不要覆盖旧目录。
 
 2. 连接相机
@@ -75,7 +75,7 @@ data/settings.json：相机与识别区域设置。
 模拟演示记录会标记“模拟”，不能视作实际测量值。
 
 7. 验证范围
-此次更新已用实际 Astra Pro 拍摄的 00.2、00.9、01.0 A 画面及 0.9/1.0 切换样本验证。
+此次更新已用实际 USB 相机拍摄的 00.2、00.9、01.0 A 画面及 0.9/1.0 切换样本验证。
 两张历史上误记为 2.0 A、实际显示 01.0 的证据图，修正后均识别为 1.0 A。
 另用真实图像回放验证：1.0 只出现一次、最后读数回到 0.9，表格仍记录最大 1.0 A。
 时间边界、等待期间排除、下一轮重置、删除框等功能均已测试，详情见验证结果.txt。
@@ -93,4 +93,3 @@ Python 3.12，依赖见 requirements.txt。
 连接并预览：python main.py --connect
 测试：python -m unittest discover -p "test_*.py" -v
 第三方许可见 THIRD_PARTY_NOTICES.txt 和 THIRD_PARTY_LICENSES。
-官方彩色接口说明：https://3dclub.orbbec3d.com/t/compatibility-astra-pro-and-openni2/108/3

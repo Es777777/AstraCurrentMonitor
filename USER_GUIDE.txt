@@ -1,4 +1,4 @@
-Astra Current Monitor v1.3.2
+Camera Current Monitor v1.3.3
 
 The blue digits on the upper display row are voltage in volts (V). The red
 digits on the lower row are current in amps (A). The interface marks each row
@@ -19,7 +19,7 @@ frame counts, quality, status, and an evidence image when available. Export the
 table as CSV. Simulated demo readings are marked and are not real measurements.
 
 Packages
-Offline package: extract the complete ZIP and run AstraCurrentMonitor.exe.
+Offline package: extract the complete ZIP and run CameraCurrentMonitor.exe.
 It contains the full runtime and works without internet or Python installed.
 
 Online package: extract its ZIP and run Install-Online.ps1 in PowerShell. The

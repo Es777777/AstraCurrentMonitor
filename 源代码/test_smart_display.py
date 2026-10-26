@@ -32,8 +32,8 @@ class SmartDisplayTests(unittest.TestCase):
         self.assertIsNone(locate_voltage(frame[:,:,[2,1,0]],3)[1])
 
     def test_migrated_photo_set_when_supplied(self):
-        root=os.environ.get('ASTRA_TEST_IMAGE_DIR')
-        if not root:self.skipTest('Set ASTRA_TEST_IMAGE_DIR to the local migrated photo directory')
+        root=os.environ.get('CURRENT_MONITOR_TEST_IMAGE_DIR')
+        if not root:self.skipTest('Set CURRENT_MONITOR_TEST_IMAGE_DIR to the local migrated photo directory')
         expected={
             '000d95063ff2d306adf40b95e01ac7c0.jpg':'030',
             '03bd650eb26ace2ec5d3df351d55856b.jpg':'054',
@@ -67,7 +67,7 @@ class SmartDisplayTests(unittest.TestCase):
         self.assertIsNone(reading.value)
 
     def test_live_photo_if_supplied(self):
-        path=os.environ.get('ASTRA_TEST_IMAGE')
+        path=os.environ.get('CURRENT_MONITOR_TEST_IMAGE')
         if not path:self.skipTest('No private camera image supplied')
         frame=cv2.imread(path)
         box,result,reason=locate_current(frame,3)

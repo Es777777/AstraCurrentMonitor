@@ -1,4 +1,4 @@
-AstraCurrentMonitor third-party software notices
+Camera Current Monitor third-party software notices
 
 Python 3.12 - Python Software Foundation License
 https://docs.python.org/3/license.html

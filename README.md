@@ -1,4 +1,4 @@
-# 通用摄像头电流监测
+# 通用摄像头电流监测（Camera Current Monitor）
 
 Windows 桌面软件通过摄像头读取双排七段数码管：**上排蓝色数字为电压（V），下排红色数字为电流（A）**。程序按设定的测量周期识别电流，并保存每轮有效读数中的最大值、该时刻电压和本轮最高电压，支持 CSV 导出与峰值证据图。
 
@@ -6,19 +6,19 @@ Windows 桌面软件通过摄像头读取双排七段数码管：**上排蓝色�
 
 ## 下载与安装
 
-从 [GitHub Releases](https://github.com/Es777777/AstraCurrentMonitor/releases/latest) 下载 Windows x64 包：
+从 [GitHub Releases](https://github.com/Es777777/CameraCurrentMonitor/releases/latest) 下载 Windows x64 包：
 
 | 版本 | 使用方式 | 需要网络 |
 | --- | --- | --- |
-| Offline | 下载 `AstraCurrentMonitor-v1.3.2-windows-offline.zip`，完整解压后运行 `AstraCurrentMonitor.exe`。包内含 Python、PyQt5、Qt、OpenCV 及运行依赖。 | 否 |
-| Online | 下载 `AstraCurrentMonitor-v1.3.2-windows-online.zip`，解压后在 PowerShell 运行 `Install-Online.ps1`。安装器检查系统架构、网络和磁盘空间，下载离线包并校验 GitHub 发布的 SHA-256，然后安装到当前用户目录并启动。 | 是 |
+| Offline | 下载 `CameraCurrentMonitor-v1.3.3-windows-offline.zip`，完整解压后运行 `CameraCurrentMonitor.exe`。包内含 Python、PyQt5、Qt、OpenCV 及运行依赖。 | 否 |
+| Online | 下载 `CameraCurrentMonitor-v1.3.3-windows-online.zip`，解压后在 PowerShell 运行 `Install-Online.ps1`。安装器检查系统架构、网络和磁盘空间，下载离线包并校验 GitHub 发布的 SHA-256，然后安装到当前用户目录并启动。 | 是 |
 
 在线安装器不下载识别模型；图像处理与识别在本机离线执行。离线 ZIP 旁附 `.sha256` 校验文件；在线安装器验证 GitHub release API 提供的资产 SHA-256 digest。首次使用仍应对照实体仪表核验读数。
 
 ## 快速开始
 
 1. 固定相机，确保上下两排数字和小数点清晰、完整，避免反光、过曝与运动模糊。
-2. 刷新摄像头列表，选择实际设备、DirectShow（DSHOW）或 Media Foundation（MSMF）接口与分辨率，然后连接。支持 Windows 能打开的普通 USB 摄像头，不限定 Astra。
+2. 刷新摄像头列表，选择实际设备、DirectShow（DSHOW）或 Media Foundation（MSMF）接口与分辨率，然后连接。支持 Windows 能打开的普通 USB 摄像头，不限定品牌。
 3. 设置电流总位数（不含小数点）与小数位数。点击“自动定位上下两行”；定位不可靠时分别框选上排电压、下排电流区域。
 4. 对照仪表实体，核对实时 V、A 数值、小数点和单位。建议使用多个已知读数检查 `0`、`1`、`8` 和小数点；通过核对选项后才开始测量。
 5. 设置“采集时长”和“两次测量间隔”。默认每轮采集 5 秒，结束后等待 10 秒，再开始下一轮。点击“开始自动测量”。
@@ -64,7 +64,7 @@ python 源代码\main.py --demo
 
 ```powershell
 Push-Location 源代码
-$env:ASTRA_TEST_IMAGE_DIR = (Resolve-Path ..\test_images).Path
+$env:CURRENT_MONITOR_TEST_IMAGE_DIR = (Resolve-Path ..\test_images).Path
 python -m unittest discover -p "test_*.py" -v
 Pop-Location
 ```

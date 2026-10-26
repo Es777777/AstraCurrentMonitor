@@ -1,4 +1,4 @@
-"""Astra Pro current display monitor — Windows desktop application."""
+"""Camera-based current and voltage display monitor for Windows."""
 import argparse
 from dataclasses import asdict
 from datetime import datetime
@@ -25,7 +25,7 @@ from camera import Camera
 from measurement import MeasurementEngine,RecordStore
 from smart_display import locate_voltage
 
-VERSION='1.3.2'
+VERSION='1.3.3'
 
 class CameraScanSignals(QObject):
     finished=Signal(list)
@@ -170,7 +170,7 @@ class MainWindow(QMainWindow):
         self.voltage_cfg=RecognitionConfig(digits=3,decimals=1,maximum=999999,auto_align=True,color='blue',row='voltage')
         self.camera=None; self.retiring=[]; self.frame=None;self.last_frame=0.; self.connected=False
         self.engine=MeasurementEngine();self.calibrating=None;self.last_shape=None; self.last_reading=None;self.last_voltage_reading=None;self.last_drop_count=0
-        self.setWindowTitle(f'Astra 电流监测 · {VERSION}');self.resize(1380,940);self.setMinimumSize(900,680)
+        self.setWindowTitle(f'通用摄像头电流监测 · {VERSION}');self.resize(1380,940);self.setMinimumSize(900,680)
         self.build_ui();self.load_settings();self.refresh_records()
         self.timer=QTimer(self);self.timer.timeout.connect(self.tick);self.timer.start(50)
         if scan_on_start:QTimer.singleShot(150,self.refresh_cameras)
@@ -179,7 +179,7 @@ class MainWindow(QMainWindow):
     def build_ui(self):
         root=QWidget();root.setObjectName('root');self.setCentralWidget(root)
         layout=QVBoxLayout(root);layout.setContentsMargins(20,15,20,15);layout.setSpacing(10)
-        title=QHBoxLayout();heading=QLabel('ASTRA  /  电流监测');heading.setStyleSheet('font-size:24px;font-weight:700;color:#16334b;')
+        title=QHBoxLayout();heading=QLabel('通用摄像头 / 电流监测');heading.setStyleSheet('font-size:24px;font-weight:700;color:#16334b;')
         title.addWidget(heading);title.addStretch();self.connection=QLabel('●  相机未连接');title.addWidget(self.connection);layout.addLayout(title)
         self.notice=QLabel('通用摄像头 · 上排蓝色为电压 / 下排红色为电流 · 1 位小数    |    首次使用请核对实物读数')
         self.notice.setStyleSheet('background:#e1edf6;color:#365c7e;padding:10px;border-radius:6px;');layout.addWidget(self.notice)
